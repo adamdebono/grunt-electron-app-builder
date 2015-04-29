@@ -15,6 +15,8 @@ var wrench = require('wrench');
 var decompressZip = require('decompress-zip');
 var progress = require('progress');
 var _ = require('lodash');
+var plist = require('plist');
+var asar = require('asar');
 
 module.exports = function(grunt) {
 
@@ -34,7 +36,11 @@ module.exports = function(grunt) {
                 build_dir: "build",
                 cache_dir: "cache",
                 app_dir: "app",
-                platforms: [plat]
+                platforms: [plat],
+                
+                app_title: null,
+                app_id: null,
+                app_version: null
             });
 
             options.platforms.forEach(function(platform){
@@ -65,10 +71,12 @@ module.exports = function(grunt) {
                 function(callback) {
                     setLinuxPermissions(options, callback);
                 },
-            ], function(err) { if (err) throw err; done(); }
-
-        );
-    });
+                function(callback) {
+                    rebrandApp(options, callback);
+                }
+            ], function(err) { if (err) throw err; done(); });
+        }
+    );
 
 
     function setLinuxPermissions(options, callback) {
@@ -343,6 +351,7 @@ module.exports = function(grunt) {
               });
             } else if (appDirStats.isFile() && options.app_dir.indexOf('.asar') !== -1) {
               grunt.log.ok("App is a file")
+              
               fs.createReadStream(options.app_dir).pipe(fs.createWriteStream(appOutputDir+'.asar'));
             } else {
               grunt.log.error('Shared directory must be either a directory or an ASAR archive.')
@@ -352,5 +361,44 @@ module.exports = function(grunt) {
         });
 
         callback();
+    }
+    
+    function rebrandApp(options, callback) {
+        grunt.log.subhead("Rebranding releases.");
+        
+        var appDirStats = fs.lstatSync(options.app_dir);
+        var appMetadata;
+        if (appDirStats.isDirectory()) {
+            var appMetadataPath = path.join(options.app_dir, "package.json");
+            appMetadata = grunt.file.readJSON(appMetadataPath);
+        } else if (appDirStats.isFile() && options.app_dir.indexOf('.asar') !== -1) {
+            appMetadata = JSON.parse(asar.extractFile(options.app_dir, "package.json"));
+        }
+        
+        callback();
+        
+        var name = options.app_title || appMetadata.name;
+        var appId = options.app_id || 'com.electron.' + name.replace(' ', '-');
+        var version = options.app_version || appMetadata.version;
+        
+        options.platforms.forEach(function (requestedPlatform) {
+            var buildOutputDir = path.join(options.build_dir, requestedPlatform, "electron");
+            
+            if (isPlatformRequested(requestedPlatform, "darwin")) {
+                var infoPlistPath = path.join(buildOutputDir, "Electron.app", "Contents", "Info.plist");
+                var infoPlist = plist.parse(fs.readFileSync(infoPlistPath).toString());
+                
+                infoPlist.CFBundleDisplayName = name;
+                infoPlist.CFBundleName = name;
+                infoPlist.CFBundleIdentifier = appId;
+                infoPlist.CFBundleVersion = version;
+                
+                fs.writeFileSync(infoPlistPath, plist.build(infoPlist));
+                
+                var appPath = path.join(buildOutputDir, "Electron.app");
+                var finalPath = path.join(buildOutputDir, name+".app");
+                fs.renameSync(appPath, finalPath);
+            }
+        });
     }
 };

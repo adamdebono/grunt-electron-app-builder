@@ -69,6 +69,30 @@ The platforms to download and build packages for. Supported platforms are `'darw
 
 Note that building `'darwin'` packages on a windows host is currently unsupported due to the format of the darwin electron zip, which includes symlinks.
 
+#### options.app_title
+Type: `String`
+Default value: `<App Name>`
+Required: `no`
+
+This will be used to rename the application. This defaults to the 'name' field in your app's package.json.
+*This is currently only implemented for darwin builds*
+
+#### options.app_id
+Type: `String`
+Default value: `com.electron.<options.app_title>`
+Required: `no`
+
+The application's identifier will be set to this value.
+*This is currently only implemented for darwin builds*
+
+#### options.app_version
+Type: `String`
+Default value: `<App Version>`
+Required: `no`
+
+This will be used to set the version for the application. This defaults to the 'version' field in your app's package.json.
+*This is currently only implemented for darwin builds*
+
 
 ## To Do:
 - Add support for further application customization (name, icon, etc)
