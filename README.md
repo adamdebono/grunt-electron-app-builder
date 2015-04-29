@@ -75,15 +75,14 @@ Default value: `<App Name>`
 Required: `no`
 
 This will be used to rename the application. This defaults to the 'name' field in your app's package.json.
-*This is currently only implemented for darwin builds*
+*This is not currently implemented for windows builds*
 
 #### options.app_id
 Type: `String`
 Default value: `com.electron.<options.app_title>`
 Required: `no`
 
-The application's identifier will be set to this value.
-*This is currently only implemented for darwin builds*
+The Mac application's bundle id will be set to this value.
 
 #### options.app_version
 Type: `String`
@@ -91,7 +90,7 @@ Default value: `<App Version>`
 Required: `no`
 
 This will be used to set the version for the application. This defaults to the 'version' field in your app's package.json.
-*This is currently only implemented for darwin builds*
+*This is not currently implemented for windows builds*
 
 
 ## To Do:

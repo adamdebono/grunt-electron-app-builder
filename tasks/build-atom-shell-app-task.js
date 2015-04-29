@@ -375,8 +375,6 @@ module.exports = function(grunt) {
             appMetadata = JSON.parse(asar.extractFile(options.app_dir, "package.json"));
         }
         
-        callback();
-        
         var name = options.app_title || appMetadata.name;
         var appId = options.app_id || 'com.electron.' + name.replace(' ', '-');
         var version = options.app_version || appMetadata.version;
@@ -396,9 +394,22 @@ module.exports = function(grunt) {
                 fs.writeFileSync(infoPlistPath, plist.build(infoPlist));
                 
                 var appPath = path.join(buildOutputDir, "Electron.app");
-                var finalPath = path.join(buildOutputDir, name+".app");
-                fs.renameSync(appPath, finalPath);
+                var finalAppPath = path.join(buildOutputDir, name+".app");
+                fs.renameSync(appPath, finalAppPath);
+            } else if (isPlatformRequested(requestedPlatform, "linux")) {
+                var versionFilePath = path.join(buildOutputDir, "version");
+                fs.writeFileSync(versionFilePath, version);
+                
+                var appPath = path.join(buildOutputDir, "electron");
+                var finalAppPath = path.join(buildOutputDir, name);
+                fs.renameSync(appPath, finalAppPath);
             }
+            
+            var finalBuildOutputDir = path.join(options.build_dir, requestedPlatform, name);
+            wrench.rmdirSyncRecursive(finalBuildOutputDir, true);
+            fs.renameSync(buildOutputDir, finalBuildOutputDir);
         });
+        
+        callback();
     }
 };
