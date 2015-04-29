@@ -397,13 +397,17 @@ module.exports = function(grunt) {
                 var finalAppPath = path.join(buildOutputDir, name+".app");
                 fs.renameSync(appPath, finalAppPath);
             } else if (isPlatformRequested(requestedPlatform, "linux")) {
-                var versionFilePath = path.join(buildOutputDir, "version");
-                fs.writeFileSync(versionFilePath, version);
-                
                 var appPath = path.join(buildOutputDir, "electron");
                 var finalAppPath = path.join(buildOutputDir, name);
                 fs.renameSync(appPath, finalAppPath);
+            } else if (isPlatformRequested(requestedPlatform, "win32")) {
+                var appPath = path.join(buildOutputDir, "electron.exe");
+                var finalAppPath = path.join(buildOutputDir, name+".exe");
+                fs.renameSync(appPath, finalAppPath);
             }
+            
+            var versionFilePath = path.join(buildOutputDir, "version");
+            fs.writeFileSync(versionFilePath, version);
             
             var finalBuildOutputDir = path.join(options.build_dir, requestedPlatform, name);
             wrench.rmdirSyncRecursive(finalBuildOutputDir, true);

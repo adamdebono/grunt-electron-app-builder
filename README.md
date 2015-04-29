@@ -75,7 +75,6 @@ Default value: `<App Name>`
 Required: `no`
 
 This will be used to rename the application. This defaults to the 'name' field in your app's package.json.
-*This is not currently implemented for windows builds*
 
 #### options.app_id
 Type: `String`
@@ -90,7 +89,6 @@ Default value: `<App Version>`
 Required: `no`
 
 This will be used to set the version for the application. This defaults to the 'version' field in your app's package.json.
-*This is not currently implemented for windows builds*
 
 
 ## To Do:
