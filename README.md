@@ -90,6 +90,11 @@ Required: `no`
 
 This will be used to set the version for the application. This defaults to the 'version' field in your app's package.json.
 
+#### options.app_icns
+Type: `String`
+Required: `no`
+
+The path to your icns file for mac packaging. This will be copied into your app, and the info.plist updated.
 
 ## To Do:
 - Add support for further application customization (name, icon, etc)

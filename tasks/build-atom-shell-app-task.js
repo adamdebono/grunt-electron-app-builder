@@ -40,7 +40,8 @@ module.exports = function(grunt) {
                 
                 app_title: null,
                 app_id: null,
-                app_version: null
+                app_version: null,
+                app_icns: null
             });
 
             options.platforms.forEach(function(platform){
@@ -390,6 +391,16 @@ module.exports = function(grunt) {
                 infoPlist.CFBundleName = name;
                 infoPlist.CFBundleIdentifier = appId;
                 infoPlist.CFBundleVersion = version;
+                
+                var icns = options.app_icns;
+                if (icns) {
+                    var icnsName = name.toLowerCase()+".icns";
+                    var icnsPath = path.join(buildOutputDir, "Electron.app", "Contents", "Resources", icnsName);
+                    
+                    fs.createReadStream(icns).pipe(fs.createWriteStream(icnsPath));
+                    
+                    infoPlist.CFBundleIconFile = icnsName;
+                }
                 
                 fs.writeFileSync(infoPlistPath, plist.build(infoPlist));
                 
