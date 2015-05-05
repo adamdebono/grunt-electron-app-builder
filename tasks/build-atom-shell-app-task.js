@@ -17,6 +17,7 @@ var progress = require('progress');
 var _ = require('lodash');
 var plist = require('plist');
 var asar = require('asar');
+var rcedit = require('rcedit');
 
 module.exports = function(grunt) {
 
@@ -41,7 +42,8 @@ module.exports = function(grunt) {
                 app_title: null,
                 app_id: null,
                 app_version: null,
-                app_icns: null
+                app_icns: null,
+                app_ico: null
             });
 
             options.platforms.forEach(function(platform){
@@ -380,8 +382,24 @@ module.exports = function(grunt) {
         var appId = options.app_id || 'com.electron.' + name.replace(' ', '-');
         var version = options.app_version || appMetadata.version;
         
+        var amountFinished = 0;
+        var finishedPlatform = function() {
+            amountFinished++;
+            if (amountFinished >= options.platforms.length) {
+                callback();
+            }
+        };
+        
         options.platforms.forEach(function (requestedPlatform) {
             var buildOutputDir = path.join(options.build_dir, requestedPlatform, "electron");
+            
+            // var finalBuildOutputDir = path.join(options.build_dir, requestedPlatform, name);
+            // wrench.rmdirSyncRecursive(finalBuildOutputDir, true);
+            // fs.renameSync(buildOutputDir, finalBuildOutputDir);
+            // buildOutputDir = finalBuildOutputDir;
+            
+            var versionFilePath = path.join(buildOutputDir, "version");
+            fs.writeFileSync(versionFilePath, version);
             
             if (isPlatformRequested(requestedPlatform, "darwin")) {
                 var infoPlistPath = path.join(buildOutputDir, "Electron.app", "Contents", "Info.plist");
@@ -407,24 +425,36 @@ module.exports = function(grunt) {
                 var appPath = path.join(buildOutputDir, "Electron.app");
                 var finalAppPath = path.join(buildOutputDir, name+".app");
                 fs.renameSync(appPath, finalAppPath);
+                
+                finishedPlatform();
             } else if (isPlatformRequested(requestedPlatform, "linux")) {
                 var appPath = path.join(buildOutputDir, "electron");
                 var finalAppPath = path.join(buildOutputDir, name);
                 fs.renameSync(appPath, finalAppPath);
+                
+                finishedPlatform();
             } else if (isPlatformRequested(requestedPlatform, "win32")) {
                 var appPath = path.join(buildOutputDir, "electron.exe");
-                var finalAppPath = path.join(buildOutputDir, name+".exe");
-                fs.renameSync(appPath, finalAppPath);
+                
+                var ico = options.app_ico;
+                if (ico) {
+                    // try {
+                        rcedit(appPath, {
+                            'icon': ico,
+                            'file-version': version,
+                            'product-version': version,
+                            // 
+                        }, function() {
+                            // var finalAppPath = path.join(buildOutputDir, name+".exe");
+                            // fs.renameSync(appPath, finalAppPath);
+                            
+                            finishedPlatform();
+                        });
+                    // } catch(error) {
+                    //     grunt.log.warn(error);
+                    // }
+                }
             }
-            
-            var versionFilePath = path.join(buildOutputDir, "version");
-            fs.writeFileSync(versionFilePath, version);
-            
-            var finalBuildOutputDir = path.join(options.build_dir, requestedPlatform, name);
-            wrench.rmdirSyncRecursive(finalBuildOutputDir, true);
-            fs.renameSync(buildOutputDir, finalBuildOutputDir);
         });
-        
-        callback();
     }
 };
