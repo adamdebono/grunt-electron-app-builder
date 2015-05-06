@@ -381,6 +381,8 @@ module.exports = function(grunt) {
         var name = options.app_title || appMetadata.name;
         var appId = options.app_id || 'com.electron.' + name.replace(' ', '-');
         var version = options.app_version || appMetadata.version;
+        var author = appMetadata.author || '';
+        var copyright = appMetadata.copyright || '';
         
         var amountFinished = 0;
         var finishedPlatform = function() {
@@ -391,12 +393,14 @@ module.exports = function(grunt) {
         };
         
         options.platforms.forEach(function (requestedPlatform) {
+            grunt.log.ok('rebranding '+requestedPlatform);
+            
             var buildOutputDir = path.join(options.build_dir, requestedPlatform, "electron");
             
-            // var finalBuildOutputDir = path.join(options.build_dir, requestedPlatform, name);
-            // wrench.rmdirSyncRecursive(finalBuildOutputDir, true);
-            // fs.renameSync(buildOutputDir, finalBuildOutputDir);
-            // buildOutputDir = finalBuildOutputDir;
+            var finalBuildOutputDir = path.join(options.build_dir, requestedPlatform, name);
+            wrench.rmdirSyncRecursive(finalBuildOutputDir, true);
+            fs.renameSync(buildOutputDir, finalBuildOutputDir);
+            buildOutputDir = finalBuildOutputDir;
             
             var versionFilePath = path.join(buildOutputDir, "version");
             fs.writeFileSync(versionFilePath, version);
@@ -435,26 +439,28 @@ module.exports = function(grunt) {
                 finishedPlatform();
             } else if (isPlatformRequested(requestedPlatform, "win32")) {
                 var appPath = path.join(buildOutputDir, "electron.exe");
+                var finalAppPath = path.join(buildOutputDir, name+".exe");
+                fs.renameSync(appPath, finalAppPath);
+                appPath = finalAppPath;
+                
+                var rceditOptions = {
+                    'version-string': {
+                        'CompanyName': 'AffinityLive',
+                        'FileDescription': name,
+                        'LegalCopyright': copyright,
+                        'ProductName': name,
+                        'ProductVersion': version
+                    }
+                };
                 
                 var ico = options.app_ico;
                 if (ico) {
-                    // try {
-                        rcedit(appPath, {
-                            'icon': ico,
-                            'file-version': version,
-                            'product-version': version,
-                            // 
-                        }, function() {
-                            // var finalAppPath = path.join(buildOutputDir, name+".exe");
-                            // fs.renameSync(appPath, finalAppPath);
-                            
-                            finishedPlatform();
-                        });
-                    // } catch(error) {
-                    //     grunt.log.warn(error);
-                    // }
+                    rceditOptions.icon = ico;
                 }
+                
+                rcedit(appPath, rceditOptions, function() {
+                    finishedPlatform();
+                });
             }
         });
     }
-};
