@@ -18,6 +18,7 @@ var _ = require('lodash');
 var plist = require('plist');
 var asar = require('asar');
 var rcedit = require('rcedit');
+var spawn = require('child_process').spawn;
 
 module.exports = function(grunt) {
 
@@ -406,7 +407,12 @@ module.exports = function(grunt) {
             fs.writeFileSync(versionFilePath, version);
             
             if (isPlatformRequested(requestedPlatform, "darwin")) {
-                var infoPlistPath = path.join(buildOutputDir, "Electron.app", "Contents", "Info.plist");
+                var appPath = path.join(buildOutputDir, "Electron.app");
+                var finalAppPath = path.join(buildOutputDir, name+".app");
+                fs.renameSync(appPath, finalAppPath);
+                appPath = finalAppPath;
+                
+                var infoPlistPath = path.join(appPath, "Contents", "Info.plist");
                 var infoPlist = plist.parse(fs.readFileSync(infoPlistPath).toString());
                 
                 infoPlist.CFBundleDisplayName = name;
@@ -417,7 +423,7 @@ module.exports = function(grunt) {
                 var icns = options.app_icns;
                 if (icns) {
                     var icnsName = name.toLowerCase()+".icns";
-                    var icnsPath = path.join(buildOutputDir, "Electron.app", "Contents", "Resources", icnsName);
+                    var icnsPath = path.join(appPath, "Contents", "Resources", icnsName);
                     
                     fs.createReadStream(icns).pipe(fs.createWriteStream(icnsPath));
                     
@@ -426,11 +432,72 @@ module.exports = function(grunt) {
                 
                 fs.writeFileSync(infoPlistPath, plist.build(infoPlist));
                 
-                var appPath = path.join(buildOutputDir, "Electron.app");
-                var finalAppPath = path.join(buildOutputDir, name+".app");
-                fs.renameSync(appPath, finalAppPath);
-                
-                finishedPlatform();
+                if (options.mac_developer_id) {
+                    var args = ['--force', '--verbose', '--sign', options.mac_developer_id];
+                    var codesign = function(objectPath, completion) {
+                        var doSign = function(objectPath, completion) {
+                            grunt.log.ok('Signing '+objectPath);
+                            
+                            var signArgs = args.slice();
+                            signArgs.push(objectPath);
+                            var child = spawn('codesign', signArgs);
+                            
+                            var error = null;
+                            var stderr = '';
+                            var stdout = '';
+                            child.on('error', function(err) {
+                                return error !== null ? error : error = err;
+                            });
+                            child.stdout.on('data', function(data) {
+                                grunt.log.ok(data);
+                                return stdout += data;
+                            });
+                            child.stderr.on('data', function(data) {
+                                grunt.log.error(data);
+                                return stderr += data;
+                            });
+                            child.on('close', function(code) {
+                                if (error !== null) {
+                                    completion(error);
+                                } else {
+                                    completion();
+                                }
+                            });
+                        }
+                        
+                        var frameworksDir = path.join(objectPath, "Contents", "Frameworks");
+                        if (fs.existsSync(frameworksDir)) {
+                            var frameworks = fs.readdirSync(frameworksDir);
+                            
+                            var frameworksDoneSigning = 0;
+                            var frameworkSignDone = function() {
+                                frameworksDoneSigning++;
+                                if (frameworksDoneSigning >= frameworks.length) {
+                                    doSign(objectPath, function() {
+                                        completion();
+                                    });
+                                }
+                            };
+                            
+                            frameworks.forEach(function(framework) {
+                                var frameworkPath = path.join(frameworksDir, framework);
+                                codesign(frameworkPath, function() {
+                                    frameworkSignDone();
+                                });
+                            });
+                        } else {
+                            doSign(objectPath, function() {
+                                completion();
+                            });
+                        }
+                    };
+                    
+                    codesign(path.join(appPath, "Contents", "Frameworks", "Electron Framework.framework", "Electron Framework"), function() {
+                        codesign(appPath, function() {
+                            finishedPlatform();
+                        });
+                    });
+                }
             } else if (isPlatformRequested(requestedPlatform, "linux")) {
                 var appPath = path.join(buildOutputDir, "electron");
                 var finalAppPath = path.join(buildOutputDir, name);
@@ -464,3 +531,4 @@ module.exports = function(grunt) {
             }
         });
     }
+}
